@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Конкурентный анализ</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="assets/vendor/html2canvas.min.js"></script>
+    <script defer src="assets/vendor/jspdf.umd.min.js"></script>
+    <script defer src="report-data.js"></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Auto.ru analytics">
+        <img src="assets/auto-ru-logo.png" alt="auto.ru" />
+      </a>
+      <div class="report-title">
+        <span>Дилерская аналитика рекламного размещения</span>
+        <strong id="dealerName">Дакар</strong>
+      </div>
+      <button class="pdf-button" id="downloadPdf" type="button" title="Скачать PDF">
+        <span aria-hidden="true">↓</span>
+        PDF
+      </button>
+    </header>
+
+    <main class="shell">
+      <section class="hero" aria-label="Обзор отчета">
+        <div class="hero-copy">
+          <h1>Конкурентный анализ</h1>
+        </div>
+      </section>
+
+      <nav class="tabs" id="brandTabs" aria-label="Марки автомобилей"></nav>
+
+      <section id="report" class="report" aria-live="polite">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Активная марка</p>
+            <h2 id="brandTitle"></h2>
+          </div>
+          <div class="period">Январь - Март 2026</div>
+        </div>
+
+        <section class="metric-section">
+          <div class="section-head compact">
+            <h3>1. Распределение лидов по дилерам</h3>
+            <span>чаты + звонки</span>
+          </div>
+          <div class="month-grid" id="leadCharts"></div>
+        </section>
+
+        <section class="metric-section">
+          <div class="section-head compact">
+            <h3>2. Средняя стоимость лида с аукционом</h3>
+          </div>
+          <div class="cpl-grid" id="cplChart"></div>
+        </section>
+
+        <section class="metric-section">
+          <div class="section-head compact">
+            <h3>3. Распределение объявлений по дилерам</h3>
+          </div>
+          <div class="month-grid" id="listingCharts"></div>
+        </section>
+
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
