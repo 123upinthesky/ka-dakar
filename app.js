@@ -43,34 +43,36 @@ function dealerMetricByMonth(rowsByMonth, dealerName) {
 }
 
 function makeBarDistribution(title, rows, unit, dealerName) {
-  const width = 940;
-  const height = 430;
-  const padding = { top: 28, right: 34, bottom: 160, left: 54 };
+  const height = 470;
+  const padding = { top: 28, right: 34, bottom: 96, left: 54 };
+  const labelLines = rows.map((row) => wrapDealerName(row.name));
+  const baseSlotWidths = labelLines.map((lines) => {
+    const longestLine = Math.max(...lines.map((line) => line.length), 1);
+    return Math.max(112, longestLine * 6.4 + 24);
+  });
+  const minimumInnerWidth = 620 - padding.left - padding.right;
+  const baseInnerWidth = baseSlotWidths.reduce((sum, slotWidth) => sum + slotWidth, 0);
+  const extraSlotWidth = rows.length ? Math.max(0, (minimumInnerWidth - baseInnerWidth) / rows.length) : 0;
+  const slotWidths = baseSlotWidths.map((slotWidth) => slotWidth + extraSlotWidth);
+  const width = Math.max(620, padding.left + padding.right + slotWidths.reduce((sum, slotWidth) => sum + slotWidth, 0));
   const values = rows.map((row) => row.value);
   const max = Math.max(1, ...values) * 1.12;
-  const innerWidth = width - padding.left - padding.right;
-  const barGap = rows.length > 10 ? 10 : 16;
-  const barWidth = Math.max(12, (innerWidth - barGap * Math.max(0, rows.length - 1)) / Math.max(1, rows.length));
+  const plotBottom = height - padding.bottom;
+  const barWidth = 64;
   const y = (value) => padding.top + (height - padding.top - padding.bottom) * (1 - value / max);
+  let slotOffset = padding.left;
   const bars = rows
     .map((row, index) => {
-      const barX = padding.left + index * (barWidth + barGap);
+      const slotWidth = slotWidths[index];
+      const labelX = slotOffset + slotWidth / 2;
+      const barX = labelX - barWidth / 2;
       const barY = y(row.value);
-      const barHeight = height - padding.bottom - barY;
+      const barHeight = plotBottom - barY;
       const isDealer = isReportDealer(row.name, dealerName);
-      const labelX = barX + barWidth / 2;
-      const denseLabels = rows.length > 10;
-      const labelY = denseLabels ? height - 104 : height - 132;
-      const labelAnchor = denseLabels ? "end" : "middle";
-      const labelTransform = denseLabels ? ` transform="rotate(-90 ${labelX} ${labelY})"` : "";
-      const denseLabel = isDealer
-        ? reportDealer
-        : row.name.length > 22
-          ? `${row.name.slice(0, 19)}...`
-          : row.name;
+      slotOffset += slotWidth;
       return `
         <rect class="${isDealer ? "bar-red" : "bar-black"}" x="${barX}" y="${barY}" width="${barWidth}" height="${barHeight}" rx="4"></rect>
-        <text class="dealer-label${denseLabels ? " dense-dealer-label" : ""}" x="${labelX}" y="${labelY}" text-anchor="${labelAnchor}"${labelTransform}><title>${escapeSvg(row.name)}</title>${denseLabels ? escapeSvg(denseLabel) : svgWrappedName(row.name, dealerName, labelX, 12, 3)}</text>
+        <text class="dealer-label" x="${labelX}" y="${plotBottom + 24}" text-anchor="middle"><title>${escapeSvg(row.name)}</title>${svgWrappedName(labelLines[index], labelX)}</text>
         <text class="value-label" x="${labelX}" y="${barY - 9}" text-anchor="middle">${rub.format(row.value)}</text>
       `;
     })
@@ -79,10 +81,12 @@ function makeBarDistribution(title, rows, unit, dealerName) {
   return `
     <article class="chart-card">
       <div class="chart-title">${title}<span>${unit}</span></div>
-      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${title}">
-        ${grid(width, height, padding)}
-        ${bars}
-      </svg>
+      <div class="bar-chart-scroll">
+        <svg class="bar-chart" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" style="width: ${width}px" role="img" aria-label="${title}">
+          ${grid(width, height, padding)}
+          ${bars}
+        </svg>
+      </div>
     </article>
   `;
 }
@@ -201,8 +205,7 @@ function grid(width, height, padding) {
 }
 
 function shortName(name, dealerName, max = 14) {
-  if (isReportDealer(name, dealerName)) return reportDealer;
-  return name.length > max ? `${name.slice(0, max - 1)}.` : name;
+  return name;
 }
 function escapeSvg(value) {
   return String(value)
@@ -211,36 +214,45 @@ function escapeSvg(value) {
     .replaceAll(">", "&gt;");
 }
 
-function wrapDealerName(name, dealerName, maxLength = 10) {
-  const label = isReportDealer(name, dealerName) ? reportDealer : name;
-  const words = String(label).split(/\s+/).filter(Boolean);
+function wrapDealerName(name, maxLines = 3, targetLength = 18) {
+  const words = String(name).trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return [""];
+
+  const totalLength = words.reduce((sum, word) => sum + word.length, 0) + words.length - 1;
+  const lineCount = Math.min(maxLines, words.length, Math.max(1, Math.ceil(totalLength / targetLength)));
   const lines = [];
-  let current = "";
-  for (const word of words) {
-    if (!current) {
-      current = word;
-    } else if (`${current} ${word}`.length <= maxLength) {
-      current = `${current} ${word}`;
-    } else {
-      lines.push(current);
-      current = word;
+  let wordIndex = 0;
+
+  for (let lineIndex = 0; lineIndex < lineCount; lineIndex += 1) {
+    const remainingLines = lineCount - lineIndex;
+    const remainingWords = words.slice(wordIndex);
+    const remainingLength =
+      remainingWords.reduce((sum, word) => sum + word.length, 0) + Math.max(0, remainingWords.length - 1);
+    const target = Math.ceil(remainingLength / remainingLines);
+    const lineWords = [];
+    let lineLength = 0;
+
+    while (wordIndex < words.length) {
+      const wordsNeededForRemainingLines = remainingLines - 1;
+      const wordsLeftAfterCurrent = words.length - (wordIndex + 1);
+      const nextWord = words[wordIndex];
+      const nextLength = lineLength + (lineWords.length ? 1 : 0) + nextWord.length;
+      if (lineWords.length && nextLength > target && wordsLeftAfterCurrent >= wordsNeededForRemainingLines) break;
+      lineWords.push(nextWord);
+      lineLength = nextLength;
+      wordIndex += 1;
     }
+
+    lines.push(lineWords.join(" "));
   }
-  if (current) lines.push(current);
-  return lines.flatMap((line) => {
-    if (line.length <= maxLength + 2) return [line];
-    const chunks = [];
-    for (let i = 0; i < line.length; i += maxLength) chunks.push(line.slice(i, i + maxLength));
-    return chunks;
-  });
+
+  if (wordIndex < words.length) lines[lines.length - 1] += ` ${words.slice(wordIndex).join(" ")}`;
+  return lines;
 }
 
-function svgWrappedName(name, dealerName, x, maxLength = 10, maxLines = 7) {
-  const lines = wrapDealerName(name, dealerName, maxLength);
-  const visible = lines.slice(0, maxLines);
-  if (lines.length > maxLines) visible[visible.length - 1] = `${visible.at(-1).slice(0, Math.max(1, maxLength - 2))}...`;
-  return visible
-    .map((line, index) => `<tspan x="${x}" dy="${index === 0 ? 0 : 12}">${escapeSvg(line)}</tspan>`)
+function svgWrappedName(lines, x) {
+  return lines
+    .map((line, index) => `<tspan x="${x}" dy="${index === 0 ? 0 : 13}">${escapeSvg(line)}</tspan>`)
     .join("");
 }
 
