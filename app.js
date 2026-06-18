@@ -63,14 +63,10 @@ function makeBarDistribution(title, rows, unit, dealerName) {
       const labelY = denseLabels ? height - 104 : height - 132;
       const labelAnchor = denseLabels ? "end" : "middle";
       const labelTransform = denseLabels ? ` transform="rotate(-90 ${labelX} ${labelY})"` : "";
-      const denseLabel = isDealer
-        ? reportDealer
-        : row.name.length > 22
-          ? `${row.name.slice(0, 19)}...`
-          : row.name;
+      const denseLabel = row.name;
       return `
         <rect class="${isDealer ? "bar-red" : "bar-black"}" x="${barX}" y="${barY}" width="${barWidth}" height="${barHeight}" rx="4"></rect>
-        <text class="dealer-label${denseLabels ? " dense-dealer-label" : ""}" x="${labelX}" y="${labelY}" text-anchor="${labelAnchor}"${labelTransform}><title>${escapeSvg(row.name)}</title>${denseLabels ? escapeSvg(denseLabel) : svgWrappedName(row.name, dealerName, labelX, 12, 3)}</text>
+        <text class="dealer-label${denseLabels ? " dense-dealer-label" : ""}" x="${labelX}" y="${labelY}" text-anchor="${labelAnchor}"${labelTransform}><title>${escapeSvg(row.name)}</title>${denseLabels ? escapeSvg(denseLabel) : svgWrappedName(row.name, dealerName, labelX, 12, 10)}</text>
         <text class="value-label" x="${labelX}" y="${barY - 9}" text-anchor="middle">${rub.format(row.value)}</text>
       `;
     })
@@ -201,8 +197,7 @@ function grid(width, height, padding) {
 }
 
 function shortName(name, dealerName, max = 14) {
-  if (isReportDealer(name, dealerName)) return reportDealer;
-  return name.length > max ? `${name.slice(0, max - 1)}.` : name;
+  return name;
 }
 function escapeSvg(value) {
   return String(value)
@@ -212,7 +207,7 @@ function escapeSvg(value) {
 }
 
 function wrapDealerName(name, dealerName, maxLength = 10) {
-  const label = isReportDealer(name, dealerName) ? reportDealer : name;
+  const label = name;
   const words = String(label).split(/\s+/).filter(Boolean);
   const lines = [];
   let current = "";
@@ -237,9 +232,7 @@ function wrapDealerName(name, dealerName, maxLength = 10) {
 
 function svgWrappedName(name, dealerName, x, maxLength = 10, maxLines = 7) {
   const lines = wrapDealerName(name, dealerName, maxLength);
-  const visible = lines.slice(0, maxLines);
-  if (lines.length > maxLines) visible[visible.length - 1] = `${visible.at(-1).slice(0, Math.max(1, maxLength - 2))}...`;
-  return visible
+  return lines
     .map((line, index) => `<tspan x="${x}" dy="${index === 0 ? 0 : 12}">${escapeSvg(line)}</tspan>`)
     .join("");
 }
